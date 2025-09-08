@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: my-postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sapri_db_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sapri_deployment
+    ports:
+      - "5400:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
