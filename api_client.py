@@ -5,8 +5,8 @@ import xml.etree.ElementTree as et
 from urllib.parse import urlencode
 
 # Replace these with your actual keys
-ACCESS_KEY = "lGy5GF6WG26Oix7x9s/5pboIqBrBzOMDzyd08u9vM+w="
-SECRET_KEY = "yzAmYHsSfS3qEi3AF60Nad49/LxjZ9Z5rOpkTDq1rbg="
+ACCESS_KEY = "XX"
+SECRET_KEY = "XX"
 API_URL = "https://my.wildlifecomputers.com/services/"
 
 
