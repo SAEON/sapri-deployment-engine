@@ -4,31 +4,27 @@ import hashlib
 import xml.etree.ElementTree as et
 from urllib.parse import urlencode
 
-# Replace these with your actual keys
-ACCESS_KEY = "XX"
-SECRET_KEY = "XX"
-API_URL = "https://my.wildlifecomputers.com/services/"
+from config import config
+
+ACCESS_KEY = config['API']['ACCESS_KEY']
+SECRET_KEY = config['API']['SECRET_KEY']
+API_URL = config['API']['URL']
 
 
 class ApiClient:
-    """
-    A client for the external API, handling authentication and requests.
-    """
 
     def _generate_hash(self, params: dict) -> str:
         """
-        Generates the HMAC SHA256 hash for the request.
+        Generates a SHA256 HMAC hash from a dictionary of parameters.
+        The parameters are first URL-encoded into a string.
         """
-        sorted_params = sorted(params.items())
-        query_string = urlencode(sorted_params)
+        param_string = urlencode(params)
 
-        # The secret key needs to be in bytes for HMAC
         secret_bytes = SECRET_KEY.encode('utf-8')
 
-        # Calculate the HMAC SHA256 hash
         signature = hmac.new(
             secret_bytes,
-            query_string.encode('utf-8'),
+            param_string.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
 
@@ -36,12 +32,9 @@ class ApiClient:
 
     def get_deployments(self) -> list:
         """
-        Queries the get_deployments endpoint and parses the XML response.
-
-        Returns:
-            A list of deployment dictionaries.
+        Fetches the list of deployments using a POST request.
         """
-        params = {"action": "get_deployments"}
+        params = {"action": "get_deployments", "owner_id": "5429a3dfe36c4f7b437a4613"}
         hash_value = self._generate_hash(params)
 
         headers = {
@@ -50,22 +43,19 @@ class ApiClient:
         }
 
         try:
-            response = requests.get(API_URL, params=params, headers=headers)
-            response.raise_for_status()  # Raises an exception for bad status codes
+            response = requests.post(API_URL, data=params, headers=headers)
+            response.raise_for_status()
 
-            # Parse the XML content
             root = et.fromstring(response.content)
 
             deployments_list = []
 
-            # Assuming the structure is <root><deployment>...</deployment></root>
             for deployment_element in root.findall('deployment'):
                 deployment_data = {
                     'id': deployment_element.find('id').text if deployment_element.find('id') is not None else None,
                     'last_update_date': int(
                         deployment_element.find('last_update_date').text) if deployment_element.find(
                         'last_update_date') is not None and deployment_element.find('last_update_date').text else None,
-                    # We'll need to parse other fields as needed
                 }
                 deployments_list.append(deployment_data)
 
@@ -80,11 +70,11 @@ class ApiClient:
 
     def download_deployment_data(self, deployment_id: str):
         """
-        Downloads data for a specific deployment ID.
+        Downloads data for a specific deployment ID using a POST request.
         """
         params = {
             "action": "download_deployment",
-            "deployment_id": deployment_id
+            "id": deployment_id
         }
         hash_value = self._generate_hash(params)
 
@@ -94,10 +84,10 @@ class ApiClient:
         }
 
         try:
-            response = requests.get(API_URL, params=params, headers=headers)
+            response = requests.post(API_URL, data=params, headers=headers)
             response.raise_for_status()
 
-            return response.text
+            return response.content
         except requests.exceptions.RequestException as e:
             print(f"Error downloading data for deployment {deployment_id}: {e}")
             return None

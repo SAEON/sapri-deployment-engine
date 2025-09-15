@@ -1,46 +1,47 @@
+import json
+import os
+
 from api_client import ApiClient
-from database import get_db, Deployment
-from sqlalchemy.orm import Session
-from typing import List
 
 
 class DataProcessor:
-    """
-    Orchestrates the data ingestion process.
-    """
-
     def __init__(self, api_client: ApiClient):
         self.api_client = api_client
+        self.info_filepath = "./data/deployment_info.json"
 
-    def get_latest_deployment_dates(self, deployment_ids: List[str], db: Session) -> dict:
+    def _load_local_info(self):
         """
-        Fetches the latest `date_time` from the database for a given list of deployment IDs.
-
-        Args:
-            deployment_ids: A list of deployment IDs to query.
-            db: The SQLAlchemy database session.
-
-        Returns:
-            A dictionary mapping deployment ID to its latest date_time.
+        Loads deployment info from the local JSON file.
+        Creates an empty file if it does not exist.
         """
-        latest_dates = {}
-        if not deployment_ids:
-            return latest_dates
+        if not os.path.exists(self.info_filepath):
+            print(f"Info file not found. Creating a new empty file at {self.info_filepath}.")
+            try:
+                with open(self.info_filepath, 'w') as f:
+                    json.dump({}, f)
+                return {}
+            except IOError as e:
+                print(f"FATAL: Could not create info file. Reason: {e}")
+                return {}
 
-        # Efficiently query the database for the latest date for each deployment_id
-        results = db.query(
-            Deployment.deployment_id,
-            Deployment.date_time
-        ).filter(
-            Deployment.deployment_id.in_(deployment_ids)
-        ).group_by(
-            Deployment.deployment_id
-        ).all()
+        try:
+            with open(self.info_filepath, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print(f"Warning: Could not decode JSON from {self.info_filepath}. Treating as empty.")
+            return {}
+        except IOError as e:
+            print(f"Error reading info file: {e}")
+            return {}
 
-        for deployment_id, date_time in results:
-            latest_dates[deployment_id] = date_time
-
-        return latest_dates
+    def _save_local_info(self, data):
+        """Saves the updated deployment info to the JSON file."""
+        try:
+            with open(self.info_filepath, 'w') as f:
+                json.dump(data, f, indent=4)
+            print("Successfully updated deployment info file.")
+        except IOError as e:
+            print(f"Error: Could not write to {self.info_filepath}. Reason: {e}")
 
     def process_deployments(self):
         """
@@ -48,33 +49,55 @@ class DataProcessor:
         """
         print("Starting data processing run...")
 
-        api_deployments = self.api_client.get_deployments()
-        if not api_deployments or 'deployment' not in api_deployments:
+        local_info = self._load_local_info()
+        updated_info = local_info.copy()
+
+        deployment_list = self.api_client.get_deployments()
+
+        if not deployment_list:
             print("No deployments found or API error.")
             return
 
-        deployment_list = api_deployments['deployment']
-        deployment_ids_to_check = [dep['id'] for dep in deployment_list]
+        i = 0
 
-        with get_db() as db:
-            db_latest_dates = self.get_latest_deployment_dates(deployment_ids_to_check, db)
+        for deployment in deployment_list:
+            if i > 2:
+                break
+            i += 1
 
-        for api_deployment in deployment_list:
-            deployment_id = api_deployment['id']
-            api_last_update_date = api_deployment['last_update_date']
-            db_last_update_date = db_latest_dates.get(deployment_id)
+            deployment_id = str(deployment['id'])
+            api_update_date = deployment['last_update_date']
 
-            # Compare dates. If the API date is newer, or the deployment isn't in our DB, download the data.
-            if db_last_update_date is None or api_last_update_date > db_last_update_date:
-                print(f"New data detected for deployment ID: {deployment_id}. Downloading...")
-                csv_data = self.api_client.download_deployment_data(deployment_id)
+            stored_entry = local_info.get(deployment_id)
+            stored_update_date = stored_entry.get('last_update_date') if stored_entry else None
 
-                if csv_data:
-                    # TODO: Here is where you will add the logic to parse the CSV
-                    # and ingest the data into your database.
-                    # This will be completed once you inspect the CSV format.
-                    print(f"Successfully downloaded data for {deployment_id}.")
+            if stored_update_date is None or api_update_date > stored_update_date:
+                if stored_update_date is None:
+                    print(f"New deployment found: {deployment_id}. Downloading data...")
+                else:
+                    print(f"Deployment {deployment_id} has been updated. Downloading new data...")
+
+                zip_data = self.api_client.download_deployment_data(deployment_id)
+
+                if zip_data:
+                    filename = f"./data/deployment_{deployment_id}_data.zip"
+                    try:
+                        with open(filename, 'wb') as f:
+                            f.write(zip_data)
+                        print(f"Successfully saved ZIP file to {filename}.")
+
+                        entry_to_update = updated_info.get(deployment_id, {})
+                        entry_to_update['last_update_date'] = api_update_date
+                        updated_info[deployment_id] = entry_to_update
+
+                    except IOError as e:
+                        print(f"Error: Failed to save file {filename}. Reason: {e}")
                 else:
                     print(f"Failed to download data for {deployment_id}.")
+            else:
+                print(f"Deployment {deployment_id} is already up to date. Skipping.")
+
+        if updated_info != local_info:
+            self._save_local_info(updated_info)
 
         print("Data processing run finished.")
