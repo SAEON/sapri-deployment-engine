@@ -6,5 +6,7 @@ __pycache__/
 .idea/
 .venv/
 .env
-data/*.zip
-data/*.json
+deployment-engine/data/*.zip
+deployment-engine/data/*.json
+deployment-engine/config/config.ini
+

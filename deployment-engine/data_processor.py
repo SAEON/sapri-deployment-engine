@@ -11,7 +11,7 @@ class DataProcessor:
         self.api_client = api_client
         self.info_filepath = "./data/deployment_info.json"
 
-    def _load_local_info(self):
+    def _load_local_deployment_info(self):
         """
         Loads deployment info from the local JSON file.
         Creates an empty file if it does not exist.
@@ -36,7 +36,7 @@ class DataProcessor:
             logger.exception(f"Error reading info file at {self.info_filepath}.")
             return {}
 
-    def _save_local_info(self, data):
+    def _update_local_deployment_info(self, data):
         """Saves the updated deployment info to the JSON file."""
         try:
             with open(self.info_filepath, 'w') as f:
@@ -45,24 +45,27 @@ class DataProcessor:
         except IOError:
             logger.exception(f"Could not write to {self.info_filepath}.")
 
-    def process_deployments(self):
+    def process_deployments(self) -> list[str]:
         """
-        Main function to check for new data and trigger downloads.
+        Gets a list of deployment ids and downloads their data if they have been updated.
+        :return: a list of deployment ids that have been downloaded
         """
         logger.info("Starting data processing run...")
 
-        local_info = self._load_local_info()
+        local_info = self._load_local_deployment_info()
         updated_info = local_info.copy()
 
         deployment_list = self.api_client.get_deployments()
 
+        updated_deployment_ids = []
+
         if not deployment_list:
             logger.warning("No deployments found or API error. Ending run.")
-            return
+            return []
 
         i = 0
         for deployment in deployment_list:
-            if i > 2:
+            if i > 5:
                 logger.debug("Breaking loop after 3 items for testing.")
                 break
             i += 1
@@ -79,27 +82,40 @@ class DataProcessor:
                 else:
                     logger.info(f"Deployment {deployment_id} has been updated. Downloading new data...")
 
-                zip_data = self.api_client.download_deployment_data(deployment_id)
-
-                if zip_data:
-                    filename = f"./data/deployment_{deployment_id}_data.zip"
-                    try:
-                        with open(filename, 'wb') as f:
-                            f.write(zip_data)
-                        logger.info(f"Successfully saved ZIP file to {filename}.")
-
-                        entry_to_update = updated_info.get(deployment_id, {})
-                        entry_to_update['last_update_date'] = api_update_date
-                        updated_info[deployment_id] = entry_to_update
-
-                    except IOError:
-                        logger.exception(f"Failed to save file {filename}.")
-                else:
-                    logger.error(f"Failed to download data for {deployment_id}.")
+                if self._fetch_and_store_deployment_data(deployment_id):
+                    entry_to_update = updated_info.get(deployment_id, {})
+                    entry_to_update['last_update_date'] = api_update_date
+                    updated_info[deployment_id] = entry_to_update
+                    updated_deployment_ids.append(deployment_id)
             else:
                 logger.info(f"Deployment {deployment_id} is already up to date. Skipping.")
 
         if updated_info != local_info:
-            self._save_local_info(updated_info)
+            self._update_local_deployment_info(updated_info)
 
         logger.info("Data processing run finished.")
+
+        return updated_deployment_ids
+
+    def _fetch_and_store_deployment_data(self, deployment_id: str) -> bool:
+        """
+        Fetches the deployment data and stores it or overwrites it if it already exists.
+        :param deployment_id: the deployment id
+        :return: true or false depending on whether the deployment was successfully downloaded
+        """
+        zip_data = self.api_client.download_deployment_data(deployment_id)
+
+        if zip_data:
+            filename = f"./data/{deployment_id}.zip"
+            try:
+                with open(filename, 'wb') as f:
+                    f.write(zip_data)
+                logger.info(f"Successfully saved ZIP file to {filename}.")
+
+                return True
+            except IOError:
+                logger.exception(f"Failed to save file {filename}.")
+        else:
+            logger.error(f"Failed to download data for {deployment_id}.")
+
+        return False

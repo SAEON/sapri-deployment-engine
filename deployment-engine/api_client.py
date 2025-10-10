@@ -9,9 +9,9 @@ from config import config
 
 logger = logging.getLogger(__name__)
 
-ACCESS_KEY = config['API']['ACCESS_KEY']
-SECRET_KEY = config['API']['SECRET_KEY']
-API_URL = config['API']['URL']
+ACCESS_KEY = config['WILDLIFE']['ACCESS_KEY']
+SECRET_KEY = config['WILDLIFE']['SECRET_KEY']
+API_URL = config['WILDLIFE']['URL']
 
 
 class ApiClient:

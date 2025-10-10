@@ -1,0 +1,10 @@
+services:
+  deployment-cron:
+    container_name: deployment-cron
+    build:
+      context: ..
+      dockerfile: deploy/cron/Dockerfile
+    logging:
+      driver: journald
+    restart: unless-stopped
+    network_mode: "host"

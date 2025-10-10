@@ -1,0 +1,1 @@
+0,15,30,45 * * * * cd /srv/deployment-engine && /usr/local/bin/python -m main >/tmp/stdout 2>&1
