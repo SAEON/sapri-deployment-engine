@@ -11,7 +11,7 @@ NEXTCLOUD_USER = config['NEXTCLOUD']['USER']
 NEXTCLOUD_PASSWORD = config['NEXTCLOUD']['PASSWORD']
 
 LOCAL_FILE_PATH = "./data/"
-REMOTE_PATH = "/SAPRI Deployments/"
+REMOTE_PATH = "/SAPRI Deployment Data/"
 
 
 def process_uploads(deployment_ids: list[str]):

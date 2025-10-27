@@ -21,6 +21,7 @@ def run_data_processor():
         data_processor = DataProcessor(api_client)
         updated_deployment_ids = data_processor.process_deployments()
         process_uploads(updated_deployment_ids)
+        data_processor.remove_deployment_data()
         logger.info("Data processor finished successfully.")
     except Exception:
         logger.exception("An unhandled exception occurred during the data processing run.")

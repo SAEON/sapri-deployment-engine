@@ -34,7 +34,8 @@ class ApiClient:
         """
         Fetches the list of deployments using a POST request.
         """
-        params = {"action": "get_deployments", "owner_id": "5429a3dfe36c4f7b437a4613"}
+        params = {"action": "get_deployments"}
+        # params = {"action": "get_deployments", "owner_id": "5429a3dfe36c4f7b437a4613"}
         hash_value = self._generate_hash(params)
 
         headers = {

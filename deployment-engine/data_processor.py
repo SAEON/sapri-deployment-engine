@@ -5,11 +5,13 @@ from api_client import ApiClient
 
 logger = logging.getLogger(__name__)
 
+DATA_DIR = './data/'
+
 
 class DataProcessor:
     def __init__(self, api_client: ApiClient):
         self.api_client = api_client
-        self.info_filepath = "./data/deployment_info.json"
+        self.info_filepath = f"{DATA_DIR}deployment_info.json"
 
     def _load_local_deployment_info(self):
         """
@@ -106,7 +108,7 @@ class DataProcessor:
         zip_data = self.api_client.download_deployment_data(deployment_id)
 
         if zip_data:
-            filename = f"./data/{deployment_id}.zip"
+            filename = f"{DATA_DIR}{deployment_id}.zip"
             try:
                 with open(filename, 'wb') as f:
                     f.write(zip_data)
@@ -119,3 +121,30 @@ class DataProcessor:
             logger.error(f"Failed to download data for {deployment_id}.")
 
         return False
+
+    def remove_deployment_data(self):
+        """
+        Iterates through the data directory and removes all .zip files.
+        """
+        logger.info("Starting removal of .zip deployment data...")
+
+        if not os.path.isdir(DATA_DIR):
+            logger.warning(f"Data directory not found: {DATA_DIR}. Skipping removal.")
+            return
+
+        removed_count = 0
+        try:
+            for filename in os.listdir(DATA_DIR):
+                if filename.endswith(".zip"):
+                    file_path = os.path.join(DATA_DIR, filename)
+
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"Removed data file: {file_path}")
+                        removed_count += 1
+                    except OSError:
+                        logger.exception(f"Error removing file: {file_path}")
+        except OSError:
+            logger.exception(f"Could not read directory: {DATA_DIR}")
+
+        logger.info("Finished removing deployment data.")
