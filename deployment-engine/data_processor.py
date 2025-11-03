@@ -65,13 +65,7 @@ class DataProcessor:
             logger.warning("No deployments found or API error. Ending run.")
             return []
 
-        i = 0
         for deployment in deployment_list:
-            if i > 5:
-                logger.debug("Breaking loop after 3 items for testing.")
-                break
-            i += 1
-
             deployment_id = str(deployment['id'])
             api_update_date = deployment['last_update_date']
 
