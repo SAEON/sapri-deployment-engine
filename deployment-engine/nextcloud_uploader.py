@@ -1,3 +1,5 @@
+import json
+
 import requests
 import os
 import logging
@@ -11,6 +13,7 @@ NEXTCLOUD_USER = config['NEXTCLOUD']['USER']
 NEXTCLOUD_PASSWORD = config['NEXTCLOUD']['PASSWORD']
 
 LOCAL_FILE_PATH = "./data/"
+DEPLOYMENT_MAPPING_PATH = "./config/deployment_mapping.json"
 REMOTE_PATH = "/SAPRI Deployment Data/"
 
 
@@ -21,10 +24,17 @@ def process_uploads(deployment_ids: list[str]):
     """
     upload_attempt_counter = 0
 
+    deployment_mapping = get_deployment_mappings()
+
     while deployment_ids.__len__() > 0 and upload_attempt_counter < 5:
         for deployment_id in deployment_ids:
+
+            friendly_name = ''
+            if deployment_mapping[deployment_id] and deployment_mapping[deployment_id]['friendly_name']:
+                friendly_name = deployment_mapping[deployment_id]['friendly_name']
+
             local_deployment_file_path = f'{LOCAL_FILE_PATH}{deployment_id}.zip'
-            remote_deployment_file_path = f'{REMOTE_PATH}{deployment_id}.zip'
+            remote_deployment_file_path = f'{REMOTE_PATH}{deployment_id}_{friendly_name}.zip'
             if _upload_to_nextcloud(local_deployment_file_path, remote_deployment_file_path):
                 deployment_ids.remove(deployment_id)
 
@@ -64,3 +74,12 @@ def _upload_to_nextcloud(local_path, remote_path) -> bool:
         logger.exception(f"An error occurred: {e}")
 
     return False
+
+
+def get_deployment_mappings():
+    try:
+        with open(DEPLOYMENT_MAPPING_PATH, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        logger.warning(f"Could not decode JSON from {DEPLOYMENT_MAPPING_PATH}. Treating as empty.")
+        return {}
