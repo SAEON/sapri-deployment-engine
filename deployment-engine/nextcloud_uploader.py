@@ -30,7 +30,7 @@ def process_uploads(deployment_ids: list[str]):
         for deployment_id in deployment_ids:
 
             friendly_name = ''
-            if deployment_mapping[deployment_id] and deployment_mapping[deployment_id]['friendly_name']:
+            if deployment_mapping.get(deployment_id) and deployment_mapping.get(deployment_id).get('friendly_name'):
                 friendly_name = deployment_mapping[deployment_id]['friendly_name']
 
             local_deployment_file_path = f'{LOCAL_FILE_PATH}{deployment_id}.zip'
